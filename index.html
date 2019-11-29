@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Word generator</title>
+</head>
+<body>
+
+    <div class="mainForm">
+        <label for="length">Length</label><br>
+        <input type="text" id="length" value="5"><br>
+        <label for="letters">Letters</label><br>
+        <input type="text" id="letters" value="achmod"><br>
+        <button id="runBtn" onclick="generateWords()">Generate</button><br>
+    </div>
+
+    <div class="filterForm">
+        <label for="filter">Filter</label><br>
+        <input type="text" class="filter" id="filter" ><br>
+        <button id="filterBtn" onclick="filter(document.getElementById('filter'))">Filter</button><br>
+
+    </div>
+
+    <div class="result-area">
+        <p class="hidden">Count of words: <b id="count"></b></p>
+        <p>Generated words</p>
+        <table id="results" border="0"></table>
+    </div>
+</body>
+</html>
+
+<style>
+    .hidden{display: none;}
+</style>
+
+<script>
+    let entries = [];
+    let table;
+    let allLetters = [];
+    let maxLength;
+    let generatedWords;
+
+    const vowels = ["a","e","i","o","u"];
+
+    let hasThreeConsonants = (word) => {
+        let tempWord = '';
+        let wordLetters = word.split('');
+        wordLetters.map((letter, i) => {
+            if (vowels.includes(letter)){
+                tempWord += 'o';
+            }else {
+                if (!((letter === 's' || letter === 'c') && wordLetters[i+1] === 'h' )){
+                    tempWord += 'x';
+                }
+            }
+        });
+        return (tempWord.indexOf('xxx') > -1 || tempWord.indexOf('ooo') > -1)
+    };
+
+    const putLetters = before => {
+        let usedLetters = before.split('');
+        let notUsedLetters = allLetters.filter(x => !usedLetters.includes(x.toString()));
+        let newWords = [];
+        let newEntry;
+        notUsedLetters.map((letter)=> {
+            newWords = newWords.filter(before => !newWords.includes(before.toString()));
+            newWords.push(before.toString() + letter.toString());
+            if (before.toString().length === maxLength - 1){
+                newEntry = convertNumbersToLetters(before.toString() + letter.toString());
+                if (!entries.includes(newEntry) && !hasThreeConsonants(newEntry)){
+                    entries.push(newEntry);
+                }
+            }else{
+                newWords.map(word => putLetters(word.toString()))
+            }
+        });
+        return entries
+    };
+
+    const generateWords = () => {
+        getTagById('filter').value = '';
+        table = getTagById('results');
+        table.innerText = '';
+        entries = [];
+        allLetters = convertLettersToNumbers(document.getElementById('letters').value.split(''));
+        maxLength = document.getElementById('length').value;
+        generatedWords = putLetters('');
+        consoleLog(generatedWords);
+        getTagById('count').innerText = generatedWords.length.toString();
+        getTagById('count').parentElement.removeAttribute('class');
+        let tr = document.createElement('tr');
+        generatedWords.map((word, i)=> {
+            let td = document.createElement('td');
+            let attr = document.createAttribute('data-text');
+            attr.value = word;
+            td.innerText = word;
+            td.setAttributeNode(attr);
+            tr.appendChild(td);
+            if ((i + 1) % allLetters.length === 0 || i + 1 === generatedWords.length){
+                table.appendChild(tr);
+                tr = document.createElement('tr');
+            }
+        });
+    };
+
+    const convertLettersToNumbers = (letters = []) => {
+        let allReversed = [];
+        letters.map((letter, i) => {
+            allReversed.push(i);
+        });
+        return allReversed
+    };
+
+    const convertNumbersToLetters = (reversedWord) => {
+        let numbers = reversedWord.split('');
+        let allLettersArray = getTagById('letters').value.split('');
+        let word = '';
+        numbers.map( (number) => {
+            word += allLettersArray[number]
+        });
+        return word
+    };
+
+    const consoleLog = object => {
+        console.log(object);
+    };
+
+    const generateAnagrams = (word) => {
+        if (word.length < 2) {
+            return [word];
+        } else {
+            // By declaring all variables outside of the loop,
+            // we improve efficiency, avoiding the needless
+            // declarations each time.
+            let anagrams = [];
+            let before, focus, after;
+            let shortWord, subAnagrams, newEntry;
+            for (let i = 0; i < word.length; i++) {
+                before = word.slice(0, i);
+                focus = word[i];
+                after = word.slice(i + 1, word.length + 1);
+                shortWord = before + after;
+                subAnagrams = generateAnagrams(shortWord);
+                subAnagrams.map(subAnagram => {
+                    newEntry = focus + subAnagram;
+                    anagrams.push(newEntry);
+                });
+            }
+            return anagrams;
+        }
+    };
+
+    const filter = e => {
+
+        let conditionCount;
+        let tdHideList = [];
+        let filtersAr = generateFilters(e.value);
+        let allTd = getTagById('results').querySelectorAll("td");
+
+        Array.prototype.map.call(allTd, (td) => {
+            filtersAr.map(filters => {
+                conditionCount = 0;
+                filters.map((filter) => {
+                    if (td.innerText.substring(filter.from, filter.from + filter.text.length) === filter.text && filter.text !== ''){
+                        conditionCount++;
+                    }
+                });
+                if (conditionCount === filters.length && conditionCount !== 0){
+                    tdHideList.push(td);
+                }
+                td.style = null;
+            });
+        });
+
+        getTagById('count').innerText = generatedWords.length;
+        getTagById('count').innerText -= tdHideList.length;
+        tdHideList.map(td => td.style.display = 'none');
+    };
+
+    const getTagById = (id) => {
+        return document.getElementById(id);
+    };
+
+    const generateFilters = (filterMaskText) => {
+
+        let filterList = [];
+        let from = null;
+        let close = false;
+        let chars = '';
+        let filterMaskAr = [];
+
+        let filterMaskTextAr = filterMaskText.split(',');
+        filterMaskTextAr.map((filterMask, j)=> {
+            filterList[j] = [];
+            filterMaskAr = filterMask.trim().split('');
+            filterMaskAr.map((char, i) => {
+
+                if (char !== '*'){
+                    if (filterMaskAr[i-1] === '*' || i === 0){
+                        from = i;
+                    }
+                    chars += char;
+                    if (i === filterMaskAr.length-1){
+                        close = true
+                    }
+                }else{
+                    if (filterMaskAr[i-1] !== '*' && chars){
+                        close = true;
+                    }
+                }
+
+                if (close){
+                    filterList[j].push({
+                        text: chars,
+                        from: from,
+                    });
+                    from = null;
+                    close = false;
+                    chars = '';
+                }
+
+            });
+
+        });
+        return filterList;
+
+    };
+
+
+    // let word = 'bad';
+    // let result = generateAnagrams(word);
+    // consoleLog(result);
+
+</script>
